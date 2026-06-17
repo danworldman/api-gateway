@@ -1,0 +1,93 @@
+services:
+  api-gateway:
+    container_name: api-gateway
+    build: .
+    ports:
+      - "8085:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - USER_SERVICE_URL=http://user-service:8080
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    depends_on:
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+
+  user-service:
+    container_name: user-app
+    build: ../user-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/user_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - REDIS_HOST=system-redis
+      - REDIS_PORT=6379
+    depends_on:
+      system-db:
+        condition: service_healthy
+      system-redis:
+        condition: service_healthy
+
+  auth-service:
+    container_name: auth-app
+    build: ../auth-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/auth_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+    depends_on:
+      system-db:
+        condition: service_healthy
+
+  order-service:
+    container_name: order-app
+    build: ../order-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/order_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - USER_SERVICE_URL=http://user-service:8080
+      - LOGGING_LEVEL_COM_INNOWISE_ORDERSERVICE=DEBUG
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB=DEBUG
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG
+    depends_on:
+      system-db:
+        condition: service_healthy
+
+  system-db:
+    container_name: system-db
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_MULTIPLE_DATABASES=user_db,auth_db,order_db
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  system-redis:
+    container_name: system-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  db-data:
