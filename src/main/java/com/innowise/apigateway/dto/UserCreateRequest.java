@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Past;
 
 import java.time.LocalDate;
 
-public record RegisterRequest(
+public record UserCreateRequest(
         @NotBlank(message = "Name is required")
         String name,
 
@@ -20,14 +20,5 @@ public record RegisterRequest(
 
         @NotBlank(message = "Email is required")
         @Email(message = "Invalid email format")
-        String email,
-
-        @NotBlank(message = "Username is required")
-        String username,
-
-        @NotBlank(message = "Password is required")
-        String password,
-
-        @NotBlank(message = "Role is required")
-        String role
+        String email
 ) {}

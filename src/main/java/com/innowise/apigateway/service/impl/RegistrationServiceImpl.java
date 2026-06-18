@@ -1,21 +1,20 @@
 package com.innowise.apigateway.service.impl;
 
 import com.innowise.apigateway.dto.RegisterRequest;
+import com.innowise.apigateway.dto.UserCreateRequest;
+import com.innowise.apigateway.dto.UserResponse;
+import com.innowise.apigateway.dto.AuthRegisterRequest;
 import com.innowise.apigateway.service.RegistrationService;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDate;
-
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class RegistrationServiceImpl implements RegistrationService {
 
     private final WebClient authWebClient;
@@ -23,7 +22,7 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     public Mono<Void> register(RegisterRequest request) {
-        UserCreateRequestJson userDto = new UserCreateRequestJson(
+        UserCreateRequest userDto = new UserCreateRequest(
                 request.name(),
                 request.surname(),
                 request.birthDate(),
@@ -34,68 +33,41 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .uri("/api/users")
                 .bodyValue(userDto)
                 .retrieve()
-                .onStatus(status -> status.isError(), response ->
-                        response.bodyToMono(String.class)
-                                .flatMap(errorBody -> Mono.error(new RuntimeException("User service error: " + errorBody)))
-                )
-                .bodyToMono(UserResponseJson.class)
-                .flatMap(userResponse -> {
-                    Long userId = userResponse.getId();
-
-                    AuthRegisterRequestJson authDto = new AuthRegisterRequestJson(
-                            userId,
-                            request.username(),
-                            request.password(),
-                            request.role()
-                    );
-
-                    return authWebClient.post()
-                            .uri("/api/v1/auth/register")
-                            .bodyValue(authDto)
-                            .retrieve()
-                            .onStatus(status -> status.isError(), response ->
-                                    response.bodyToMono(String.class)
-                                            .flatMap(errorBody -> Mono.error(new RuntimeException(errorBody)))
-                            )
-                            .toBodilessEntity()
-                            .then()
-                            .onErrorResume(Throwable.class, e -> {
-                                log.error("Auth service failed, rolling back user in User Service for id: {}", userId);
-                                return userWebClient.delete()
-                                        .uri("/api/users/" + userId)
-                                        .retrieve()
-                                        .toBodilessEntity()
-                                        .then(authWebClient.post()
-                                                .uri("/api/v1/auth/rollback/" + userId)
-                                                .retrieve()
-                                                .toBodilessEntity())
-                                        .then(Mono.error(new RuntimeException("Registration rolled back: " + e.getMessage())));
-                            });
-                });
+                .onStatus(HttpStatusCode::isError,
+                        res -> handleServiceError(res, "User service error: "))
+                .bodyToMono(UserResponse.class)
+                .flatMap(userResponse -> processAuthRegistration(request, userResponse.id()))
+                .then();
     }
 
-    @Data
-    @AllArgsConstructor
-    static class UserCreateRequestJson {
-        private String name;
-        private String surname;
-        private LocalDate birthDate;
-        private String email;
+    private Mono<ResponseEntity<Void>> processAuthRegistration(RegisterRequest request, Long userId) {
+        AuthRegisterRequest authDto = new AuthRegisterRequest(
+                userId,
+                request.username(),
+                request.password(),
+                request.role()
+        );
+
+        return authWebClient.post()
+                .uri("/api/v1/auth/register")
+                .bodyValue(authDto)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError,
+                        res -> handleServiceError(res, "Auth service error: "))
+                .toBodilessEntity()
+                .onErrorResume(Throwable.class, e -> rollbackUserCreation(userId, e));
     }
 
-    @Data
-    @AllArgsConstructor
-    static class AuthRegisterRequestJson {
-        private Long userServiceId;
-        private String username;
-        private String password;
-        private String role;
+    private Mono<Throwable> handleServiceError(ClientResponse response, String errorPrefix) {
+        return response.bodyToMono(String.class)
+                .map(body -> new RuntimeException(errorPrefix + body));
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    static class UserResponseJson {
-        private Long id;
+    private Mono<ResponseEntity<Void>> rollbackUserCreation(Long userId, Throwable throwable) {
+        return userWebClient.delete()
+                .uri("/api/users/" + userId)
+                .retrieve()
+                .toBodilessEntity()
+                .then(Mono.error(new RuntimeException("Registration rolled back. Reason: " + throwable.getMessage())));
     }
 }

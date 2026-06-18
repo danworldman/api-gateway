@@ -1,5 +1,7 @@
 package com.innowise.apigateway.filter;
 
+import com.innowise.apigateway.dto.ValidateTokenRequest;
+import com.innowise.apigateway.dto.ValidateResponse;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -10,10 +12,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.List;
 
 @Component
@@ -39,57 +37,41 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return onError(exchange, HttpStatus.UNAUTHORIZED);
         }
 
-        String authHeader = authHeaders.get(0);
+        String authHeader = authHeaders.getFirst();
         if (!authHeader.startsWith("Bearer ")) {
             return onError(exchange, HttpStatus.UNAUTHORIZED);
         }
         String token = authHeader.substring(7);
 
-        ValidateTokenRequestJson body = new ValidateTokenRequestJson(token);
+        ValidateTokenRequest body = new ValidateTokenRequest(token);
 
         return authWebClient.post()
                 .uri("/api/v1/auth/validate")
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(ValidateResponseJson.class)
+                .bodyToMono(ValidateResponse.class)
                 .flatMap(claims -> {
-                    if (claims != null && claims.getUserId() != null) {
-                        ServerHttpRequest mutatedRequest = request.mutate()
-                                .header(HttpHeaders.AUTHORIZATION, authHeader)
-                                .header("X-User-Id", String.valueOf(claims.getUserId()))
-                                .header("X-User-Role", claims.getRole())
+                    if (claims != null && claims.userId() != null) {
+                        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                                .header("X-User-Id", String.valueOf(claims.userId()))
+                                .header("X-User-Role", claims.role())
                                 .build();
-                        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                        ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
+                        return chain.filter(mutatedExchange);
                     } else {
                         return onError(exchange, HttpStatus.UNAUTHORIZED);
                     }
                 })
-                .onErrorResume(e -> {
-                    return onError(exchange, HttpStatus.INTERNAL_SERVER_ERROR);
-                });
+                .onErrorResume(e -> onError(exchange, HttpStatus.UNAUTHORIZED));
+    }
+
+    @Override
+    public int getOrder() {
+        return -1; // Высокий приоритет, выполняется до маршрутизации Netty
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, HttpStatus status) {
         exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
-    }
-
-    @Override
-    public int getOrder() {
-        return -1;
-    }
-
-    @Data
-    @AllArgsConstructor
-    static class ValidateTokenRequestJson {
-        private String token;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    static class ValidateResponseJson {
-        private Long userId;
-        private String role;
     }
 }

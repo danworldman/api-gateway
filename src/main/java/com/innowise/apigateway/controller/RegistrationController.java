@@ -1,6 +1,7 @@
 package com.innowise.apigateway.controller;
 
 import com.innowise.apigateway.dto.RegisterRequest;
+import com.innowise.apigateway.dto.UserResponse;
 import com.innowise.apigateway.service.RegistrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +21,8 @@ public class RegistrationController {
     private final RegistrationService registrationService;
 
     @PostMapping("/register")
-    public Mono<ResponseEntity<String>> register(@Valid @RequestBody RegisterRequest request) {
+    public Mono<ResponseEntity<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
         return registrationService.register(request)
-                .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully")));
+                .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).<UserResponse>build()));
     }
 }
