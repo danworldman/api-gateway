@@ -1,4 +1,4 @@
-package com.innowise.apigateway.dto;
+package com.innowise.apigateway.dto.auth;
 
 public record ValidateResponse(
         Long userId,

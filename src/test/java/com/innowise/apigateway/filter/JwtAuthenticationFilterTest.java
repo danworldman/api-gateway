@@ -1,6 +1,7 @@
 package com.innowise.apigateway.filter;
 
-import com.innowise.apigateway.dto.ValidateResponse;
+import com.innowise.apigateway.dto.auth.ValidateResponse;
+import com.innowise.apigateway.testdata.GatewayTestData;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,11 +17,12 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 
 @ExtendWith(MockitoExtension.class)
-class JwtAuthenticationFilterTest {
+class JwtAuthenticationFilterTest extends GatewayTestData {
 
     @Mock
     private WebClient authWebClient;
@@ -35,7 +37,7 @@ class JwtAuthenticationFilterTest {
     private JwtAuthenticationFilter filter;
 
     @Test
-    void filter_ShouldReturnUnauthorized_WhenAuthHeaderIsMissing() {
+    void shouldReturnUnauthorized_whenAuthHeaderIsMissing() {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/users/1").build();
         ServerWebExchange exchange = MockServerWebExchange.from(request);
         GatewayFilterChain chain = (exchange1) -> Mono.empty();
@@ -43,11 +45,11 @@ class JwtAuthenticationFilterTest {
         Mono<Void> result = filter.filter(exchange, chain);
 
         StepVerifier.create(result).verifyComplete();
-        assert exchange.getResponse().getStatusCode() == HttpStatus.UNAUTHORIZED;
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void filter_ShouldReturnUnauthorized_WhenAuthHeaderIsInvalid() {
+    void shouldReturnUnauthorized_whenAuthHeaderIsInvalid() {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/users/1")
                 .header(HttpHeaders.AUTHORIZATION, "InvalidToken")
                 .build();
@@ -57,14 +59,13 @@ class JwtAuthenticationFilterTest {
         Mono<Void> result = filter.filter(exchange, chain);
 
         StepVerifier.create(result).verifyComplete();
-        assert exchange.getResponse().getStatusCode() == HttpStatus.UNAUTHORIZED;
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void filter_ShouldForwardRequest_WhenTokenValid() {
-        String token = "valid_token";
+    void shouldForwardRequest_whenTokenValid() {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/users/1")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + VALID_TOKEN)
                 .build();
         ServerWebExchange exchange = MockServerWebExchange.from(request);
         GatewayFilterChain chain = (exchange1) -> Mono.empty();
@@ -73,12 +74,12 @@ class JwtAuthenticationFilterTest {
         doReturn(requestBodyUriSpec).when(requestBodyUriSpec).uri("/api/v1/auth/validate");
         doReturn(requestBodyUriSpec).when(requestBodyUriSpec).bodyValue(any());
         doReturn(responseSpec).when(requestBodyUriSpec).retrieve();
-        doReturn(Mono.just(new ValidateResponse(1L, "USER")))
+        doReturn(Mono.just(new ValidateResponse(DEFAULT_USER_ID, DEFAULT_ROLE)))
                 .when(responseSpec).bodyToMono(ValidateResponse.class);
 
         Mono<Void> result = filter.filter(exchange, chain);
 
         StepVerifier.create(result).verifyComplete();
-        assert exchange.getResponse().getStatusCode() == null;
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 }

@@ -1,4 +1,4 @@
-package com.innowise.apigateway.dto;
+package com.innowise.apigateway.dto.user;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

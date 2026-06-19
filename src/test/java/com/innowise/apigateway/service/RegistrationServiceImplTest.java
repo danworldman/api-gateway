@@ -1,7 +1,7 @@
 package com.innowise.apigateway.service;
 
-import com.innowise.apigateway.dto.RegisterRequest;
 import com.innowise.apigateway.service.impl.RegistrationServiceImpl;
+import com.innowise.apigateway.testdata.GatewayTestData;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -12,9 +12,8 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.io.IOException;
-import java.time.LocalDate;
 
-class RegistrationServiceImplTest {
+class RegistrationServiceImplTest extends GatewayTestData {
 
     private MockWebServer userMockServer;
     private MockWebServer authMockServer;
@@ -44,12 +43,7 @@ class RegistrationServiceImplTest {
     }
 
     @Test
-    void register_ShouldSucceed_WhenUserAndAuthServicesSucceed() {
-        RegisterRequest request = new RegisterRequest(
-                "Ivan", "Petrov", LocalDate.of(1990, 5, 15),
-                "ivan@mail.com", "ivan_user", "securePass123", "USER"
-        );
-
+    void shouldRegisterSucceed_whenUserAndAuthServicesSucceed() {
         userMockServer.enqueue(new MockResponse()
                 .setResponseCode(201)
                 .setHeader("Content-Type", "application/json")
@@ -60,18 +54,13 @@ class RegistrationServiceImplTest {
                 .setHeader("Content-Type", "application/json")
                 .setBody("{}"));
 
-        Mono<Void> result = registrationService.register(request);
+        Mono<Void> result = registrationService.register(defaultRegisterRequest);
 
         StepVerifier.create(result).verifyComplete();
     }
 
     @Test
-    void register_ShouldRollback_WhenAuthServiceFails() {
-        RegisterRequest request = new RegisterRequest(
-                "Ivan", "Petrov", LocalDate.of(1990, 5, 15),
-                "ivan@mail.com", "ivan_user", "securePass123", "USER"
-        );
-
+    void shouldRollback_whenAuthServiceFails() {
         userMockServer.enqueue(new MockResponse()
                 .setResponseCode(201)
                 .setHeader("Content-Type", "application/json")
@@ -87,7 +76,7 @@ class RegistrationServiceImplTest {
                 .setHeader("Content-Type", "application/json")
                 .setBody(""));
 
-        Mono<Void> result = registrationService.register(request);
+        Mono<Void> result = registrationService.register(defaultRegisterRequest);
 
         StepVerifier.create(result)
                 .expectErrorMatches(e -> e.getMessage().contains("Registration rolled back"))
@@ -95,18 +84,13 @@ class RegistrationServiceImplTest {
     }
 
     @Test
-    void register_ShouldFail_WhenUserServiceFails() {
-        RegisterRequest request = new RegisterRequest(
-                "Ivan", "Petrov", LocalDate.of(1990, 5, 15),
-                "ivan@mail.com", "ivan_user", "securePass123", "USER"
-        );
-
+    void shouldFail_whenUserServiceFails() {
         userMockServer.enqueue(new MockResponse()
                 .setResponseCode(400)
                 .setHeader("Content-Type", "application/json")
                 .setBody("{\"error\":\"Bad request\"}"));
 
-        Mono<Void> result = registrationService.register(request);
+        Mono<Void> result = registrationService.register(defaultRegisterRequest);
 
         StepVerifier.create(result)
                 .expectErrorMatches(e -> e.getMessage().contains("User service error"))

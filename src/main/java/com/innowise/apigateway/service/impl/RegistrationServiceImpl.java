@@ -1,9 +1,9 @@
 package com.innowise.apigateway.service.impl;
 
-import com.innowise.apigateway.dto.RegisterRequest;
-import com.innowise.apigateway.dto.UserCreateRequest;
-import com.innowise.apigateway.dto.UserResponse;
-import com.innowise.apigateway.dto.AuthRegisterRequest;
+import com.innowise.apigateway.dto.auth.RegisterRequest;
+import com.innowise.apigateway.dto.user.UserCreateRequest;
+import com.innowise.apigateway.dto.user.UserResponse;
+import com.innowise.apigateway.dto.auth.AuthRegisterRequest;
 import com.innowise.apigateway.service.RegistrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatusCode;

@@ -1,7 +1,7 @@
 package com.innowise.apigateway.controller;
 
-import com.innowise.apigateway.dto.RegisterRequest;
-import com.innowise.apigateway.dto.UserResponse;
+import com.innowise.apigateway.dto.auth.RegisterRequest;
+import com.innowise.apigateway.dto.user.UserResponse;
 import com.innowise.apigateway.service.RegistrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,4 @@
-package com.innowise.apigateway.dto;
+package com.innowise.apigateway.dto.user;
 
 public record UserResponse(
         Long id
