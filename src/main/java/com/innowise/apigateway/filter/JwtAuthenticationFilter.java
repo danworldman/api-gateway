@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-
 import java.util.List;
 
 @Component
@@ -25,45 +24,45 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest request = exchange.getRequest();
-        String path = request.getURI().getPath();
+    public Mono<Void> filter(ServerWebExchange serverWebExchange, GatewayFilterChain gatewayFilterChain) {
+        ServerHttpRequest serverHttpRequest = serverWebExchange.getRequest();
+        String requestUriPath = serverHttpRequest.getURI().getPath();
 
-        if (path.contains("/auth/login") || path.contains("/register")) {
-            return chain.filter(exchange);
+        if (requestUriPath.equals("/register") || requestUriPath.contains("/auth/login") || requestUriPath.contains("/oauth2/jwks")) {
+            return gatewayFilterChain.filter(serverWebExchange);
         }
 
-        List<String> authHeaders = request.getHeaders().get(HttpHeaders.AUTHORIZATION);
-        if (authHeaders == null || authHeaders.isEmpty()) {
-            return onError(exchange, HttpStatus.UNAUTHORIZED);
+        List<String> authorizationHeaders = serverHttpRequest.getHeaders().get(HttpHeaders.AUTHORIZATION);
+        if (authorizationHeaders == null || authorizationHeaders.isEmpty()) {
+            return handleFilterError(serverWebExchange, HttpStatus.UNAUTHORIZED);
         }
 
-        String authHeader = authHeaders.getFirst();
-        if (!authHeader.startsWith("Bearer ")) {
-            return onError(exchange, HttpStatus.UNAUTHORIZED);
+        String authorizationHeader = authorizationHeaders.getFirst();
+        if (!authorizationHeader.startsWith("Bearer ")) {
+            return handleFilterError(serverWebExchange, HttpStatus.UNAUTHORIZED);
         }
-        String token = authHeader.substring(7);
+        String jsonWebToken = authorizationHeader.substring(7);
 
-        ValidateTokenRequest body = new ValidateTokenRequest(token);
+        ValidateTokenRequest validateTokenRequest = new ValidateTokenRequest(jsonWebToken);
 
         return authWebClient.post()
                 .uri("/api/v1/auth/validate")
-                .bodyValue(body)
+                .bodyValue(validateTokenRequest)
                 .retrieve()
                 .bodyToMono(ValidateResponse.class)
-                .flatMap(claims -> {
-                    if (claims != null && claims.userId() != null) {
-                        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                                .header("X-User-Id", String.valueOf(claims.userId()))
-                                .header("X-User-Role", claims.role())
+                .flatMap(validateResponse -> {
+                    if (validateResponse != null && validateResponse.userId() != null) {
+                        ServerHttpRequest mutatedHttpRequest = serverWebExchange.getRequest().mutate()
+                                .header("X-User-Id", String.valueOf(validateResponse.userId()))
+                                .header("X-User-Role", validateResponse.role())
                                 .build();
-                        ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
-                        return chain.filter(mutatedExchange);
+                        ServerWebExchange mutatedServerWebExchange = serverWebExchange.mutate().request(mutatedHttpRequest).build();
+                        return gatewayFilterChain.filter(mutatedServerWebExchange);
                     } else {
-                        return onError(exchange, HttpStatus.UNAUTHORIZED);
+                        return handleFilterError(serverWebExchange, HttpStatus.UNAUTHORIZED);
                     }
                 })
-                .onErrorResume(e -> onError(exchange, HttpStatus.UNAUTHORIZED));
+                .onErrorResume(throwable -> handleFilterError(serverWebExchange, HttpStatus.UNAUTHORIZED));
     }
 
     @Override
@@ -71,8 +70,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return -1;
     }
 
-    private Mono<Void> onError(ServerWebExchange exchange, HttpStatus status) {
-        exchange.getResponse().setStatusCode(status);
-        return exchange.getResponse().setComplete();
+    private Mono<Void> handleFilterError(ServerWebExchange serverWebExchange, HttpStatus httpStatus) {
+        serverWebExchange.getResponse().setStatusCode(httpStatus);
+        return serverWebExchange.getResponse().setComplete();
     }
 }

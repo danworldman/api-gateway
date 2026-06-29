@@ -15,6 +15,8 @@ services:
         condition: service_started
       order-service:
         condition: service_started
+      payment-service:
+        condition: service_started
 
   user-service:
     container_name: user-app
@@ -64,6 +66,37 @@ services:
       system-db:
         condition: service_healthy
 
+  payment-service:
+    container_name: payment-app
+    build: ../payment-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_MONGODB_URI=mongodb://root:example@system-mongodb:27017/paymentdb?authSource=admin
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=system-kafka:9092
+      - EXTERNAL_API_URL=http://external-mock:8084/api/numbers
+    depends_on:
+      system-mongodb:
+        condition: service_healthy
+      system-kafka:
+        condition: service_healthy
+      external-mock:
+        condition: service_healthy
+
+  external-mock:
+    image: alpine
+    container_name: external-mock
+    ports:
+      - "8084:8084"
+    command: >
+      sh -c "echo 'while true; do echo -e \"HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\\\"number\\\": \$((\$RANDOM % 100))}\" | nc -l -p 8084; done' > /app.sh && chmod +x /app.sh && /app.sh"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8084"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   system-db:
     container_name: system-db
     image: postgres:17
@@ -92,5 +125,55 @@ services:
       timeout: 3s
       retries: 5
 
+  system-mongodb:
+    container_name: system-mongodb
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: paymentdb
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  system-zookeeper:
+    container_name: system-zookeeper
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  system-kafka:
+    container_name: system-kafka
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      system-zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: system-zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://system-kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   db-data:
+  mongo-data:

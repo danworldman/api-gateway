@@ -1,8 +1,9 @@
 package com.innowise.apigateway.service;
 
 import com.innowise.apigateway.dto.auth.RegisterRequest;
+import com.innowise.apigateway.dto.user.UserResponse;
 import reactor.core.publisher.Mono;
 
 public interface RegistrationService {
-    Mono<Void> register(RegisterRequest request);
+    Mono<UserResponse> register(RegisterRequest request);
 }

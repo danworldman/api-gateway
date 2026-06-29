@@ -5,9 +5,9 @@ spring:
         webflux:
           routes:
             - id: register-local
-              uri: forward:/api/v1/auth/register
+              uri: forward:/api/v1/auth/credentials
               predicates:
-                - Path=/api/v1/auth/register
+                - Path=/api/v1/auth/credentials
 
             - id: user-service
               uri: http://user-service:8080
@@ -42,45 +42,19 @@ spring:
             - id: order-service
               uri: http://order-service:8082
               predicates:
-                - Path=/api/v1/orders/**
+                - Path=/api/orders/**
               filters:
-                - name: RewritePath
-                  args:
-                    regexp: "/api/v1/orders(?<segment>/?.*)"
-                    replacement: "/api/orders${segment}"
                 - name: CircuitBreaker
                   args:
                     name: orderCircuitBreaker
                     fallbackUri: forward:/fallback/order
 
-server:
-  port: 8080
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      userCircuitBreaker:
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        waitDurationInOpenState: 5s
-        failureRateThreshold: 50
-      authCircuitBreaker:
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        waitDurationInOpenState: 5s
-        failureRateThreshold: 50
-      orderCircuitBreaker:
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        waitDurationInOpenState: 5s
-        failureRateThreshold: 50
-
-logging:
-  level:
-    org.springframework.cloud.gateway: TRACE
-    org.springframework.web.reactive: DEBUG
-    org.springframework.security: DEBUG
-    reactor.netty.http.client: DEBUG
+            - id: payment-service
+              uri: http://payment-service:8083
+              predicates:
+                - Path=/api/payments/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: paymentCircuitBreaker
+                    fallbackUri: forward:/fallback/payment

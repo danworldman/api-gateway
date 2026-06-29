@@ -21,46 +21,46 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final WebClient userWebClient;
 
     @Override
-    public Mono<Void> register(RegisterRequest request) {
-        UserCreateRequest userDto = new UserCreateRequest(
-                request.name(),
-                request.surname(),
-                request.birthDate(),
-                request.email()
+    public Mono<UserResponse> register(RegisterRequest registerRequest) {
+        UserCreateRequest userCreateRequest = new UserCreateRequest(
+                registerRequest.name(),
+                registerRequest.surname(),
+                registerRequest.birthDate(),
+                registerRequest.email()
         );
 
         return userWebClient.post()
                 .uri("/api/users")
-                .bodyValue(userDto)
+                .bodyValue(userCreateRequest)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError,
-                        res -> handleServiceError(res, "User service error: "))
+                        clientResponse -> handleServiceError(clientResponse, "User service error: "))
                 .bodyToMono(UserResponse.class)
-                .flatMap(userResponse -> processAuthRegistration(request, userResponse.id()))
-                .then();
+                .flatMap(userResponse -> processAuthRegistration(registerRequest, userResponse.id())
+                        .thenReturn(userResponse));
     }
 
-    private Mono<ResponseEntity<Void>> processAuthRegistration(RegisterRequest request, Long userId) {
-        AuthRegisterRequest authDto = new AuthRegisterRequest(
+    private Mono<ResponseEntity<Void>> processAuthRegistration(RegisterRequest registerRequest, Long userId) {
+        AuthRegisterRequest authRegisterRequest = new AuthRegisterRequest(
                 userId,
-                request.username(),
-                request.password(),
-                request.role()
+                registerRequest.username(),
+                registerRequest.password(),
+                registerRequest.role()
         );
 
         return authWebClient.post()
-                .uri("/api/v1/auth/register")
-                .bodyValue(authDto)
+                .uri("/api/v1/auth/credentials")
+                .bodyValue(authRegisterRequest)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError,
-                        res -> handleServiceError(res, "Auth service error: "))
+                        clientResponse -> handleServiceError(clientResponse, "Auth service error: "))
                 .toBodilessEntity()
-                .onErrorResume(Throwable.class, e -> rollbackUserCreation(userId, e));
+                .onErrorResume(Throwable.class, throwable -> rollbackUserCreation(userId, throwable));
     }
 
-    private Mono<Throwable> handleServiceError(ClientResponse response, String errorPrefix) {
-        return response.bodyToMono(String.class)
-                .map(body -> new RuntimeException(errorPrefix + body));
+    private Mono<Throwable> handleServiceError(ClientResponse clientResponse, String errorPrefix) {
+        return clientResponse.bodyToMono(String.class)
+                .map(responseBody -> new RuntimeException(errorPrefix + responseBody));
     }
 
     private Mono<ResponseEntity<Void>> rollbackUserCreation(Long userId, Throwable throwable) {
