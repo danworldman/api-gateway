@@ -53,8 +53,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 .flatMap(validateResponse -> {
                     if (validateResponse != null && validateResponse.userId() != null) {
                         ServerHttpRequest mutatedHttpRequest = serverWebExchange.getRequest().mutate()
-                                .header("X-User-Id", String.valueOf(validateResponse.userId()))
-                                .header("X-User-Role", validateResponse.role())
+                                .headers(httpHeaders -> {
+                                    httpHeaders.set(HttpHeaders.AUTHORIZATION, authorizationHeader);
+                                    httpHeaders.set("X-User-Id", String.valueOf(validateResponse.userId()));
+                                    httpHeaders.set("X-User-Role", validateResponse.role());
+                                })
                                 .build();
                         ServerWebExchange mutatedServerWebExchange = serverWebExchange.mutate().request(mutatedHttpRequest).build();
                         return gatewayFilterChain.filter(mutatedServerWebExchange);

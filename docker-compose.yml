@@ -39,6 +39,8 @@ services:
   auth-service:
     container_name: auth-app
     build: ../auth-service
+    ports:
+      - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/auth_db
@@ -73,7 +75,7 @@ services:
       - "8083:8083"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_MONGODB_URI=mongodb://root:example@system-mongodb:27017/paymentdb?authSource=admin
+      - SPRING_MONGODB_URI=mongodb://system-mongodb:27017/payment_db?connectTimeoutMS=5000&socketTimeoutMS=5000
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=system-kafka:9092
       - EXTERNAL_API_URL=http://external-mock:8084/api/numbers
     depends_on:
@@ -126,53 +128,52 @@ services:
       retries: 5
 
   system-mongodb:
+    image: mongo:4.4
     container_name: system-mongodb
-    image: mongo:6.0
     ports:
       - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-      MONGO_INITDB_DATABASE: paymentdb
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      test: mongo --eval "db.adminCommand('ping')" --quiet || exit 1
       interval: 5s
       timeout: 3s
       retries: 5
 
   system-zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
     container_name: system-zookeeper
-    image: confluentinc/cp-zookeeper:latest
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
     healthcheck:
-      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/2181"]
       interval: 5s
       timeout: 3s
       retries: 5
 
   system-kafka:
+    image: confluentinc/cp-kafka:7.4.0
     container_name: system-kafka
-    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9092:9092"
     depends_on:
       system-zookeeper:
         condition: service_healthy
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: system-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://system-kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    ports:
-      - "9092:9092"
     healthcheck:
-      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      test: [ "CMD", "bash", "-c", "</dev/tcp/127.0.0.1/9092" ]
       interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 30s
 
 volumes:
   db-data:
