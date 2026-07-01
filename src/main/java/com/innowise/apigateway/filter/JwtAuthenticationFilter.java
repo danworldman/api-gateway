@@ -28,7 +28,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         ServerHttpRequest serverHttpRequest = serverWebExchange.getRequest();
         String requestUriPath = serverHttpRequest.getURI().getPath();
 
-        if (requestUriPath.equals("/register") || requestUriPath.contains("/auth/login") || requestUriPath.contains("/oauth2/jwks")) {
+        if (requestUriPath.equals("/register") || requestUriPath.equals("/api/v1/auth/login") || requestUriPath.equals("/oauth2/jwks")) {
             return gatewayFilterChain.filter(serverWebExchange);
         }
 
