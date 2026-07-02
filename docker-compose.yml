@@ -76,17 +76,15 @@ services:
         condition: service_healthy
 
   external-mock:
-    image: alpine
+    image: python:3.11-alpine
     container_name: external-mock
     ports:
       - "8084:8084"
-    command: >
-      sh -c "while true; do 
-        RAND_VAL=\$(od -An -N2 -i /dev/urandom | awk '{print \$1 % 100}');
-        echo -e \"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\\\"number\\\": \$\$RAND_VAL}\" | nc -ll -p 8084;
-      done"
+    volumes:
+      - ./mock.py:/mock.py
+    command: python /mock.py
     healthcheck:
-      test: ["CMD", "nc", "-z", "127.0.0.1", "8084"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8084/api/numbers')"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -127,7 +125,7 @@ services:
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: mongo --eval "db.adminCommand('ping')" --quiet || exit 1
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')", "--quiet"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -140,11 +138,6 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-#    healthcheck:
-#      test: [ "CMD", "zookeeper-shell", "localhost:2181", "ls", "/" ]
-#      interval: 5s
-#      timeout: 3s
-#      retries: 5
 
   system-kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -153,7 +146,6 @@ services:
       - "9092:9092"
     depends_on:
       system-zookeeper:
-#        condition: service_healthy
         condition: service_started
     environment:
       KAFKA_BROKER_ID: 1

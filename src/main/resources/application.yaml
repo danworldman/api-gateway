@@ -29,11 +29,11 @@ resilience4j:
         waitDurationInOpenState: 5s
         failureRateThreshold: 50
       paymentCircuitBreaker:
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
         permittedNumberOfCallsInHalfOpenState: 3
         waitDurationInOpenState: 5s
-        failureRateThreshold: 50
+        failureRateThreshold: 60
 
 logging:
   level:
