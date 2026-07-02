@@ -4,33 +4,35 @@ spring:
       httpclient:
         connect-timeout: 10000
         response-timeout: 10s
-      routes:
-        - id: register-local
-          uri: forward:/register
-          predicates:
-            - Path=/register
+      server:
+        webflux:
+          routes:
+            - id: register-local
+              uri: forward:/register
+              predicates:
+                - Path=/register
 
-        - id: user-service
-          uri: http://user-app:8080
-          predicates:
-            - Path=/api/users/**
+            - id: user-service
+              uri: http://user-app:8080
+              predicates:
+                - Path=/api/users/**
 
-        - id: user-cards
-          uri: http://user-app:8080
-          predicates:
-            - Path=/api/cards/**
+            - id: user-cards
+              uri: http://user-app:8080
+              predicates:
+                - Path=/api/cards/**
 
-        - id: auth-service
-          uri: http://auth-app:8081
-          predicates:
-            - Path=/api/v1/auth/**
+            - id: auth-service
+              uri: http://auth-app:8081
+              predicates:
+                - Path=/api/v1/auth/**
 
-        - id: order-service
-          uri: http://order-app:8082
-          predicates:
-            - Path=/api/orders/**
+            - id: order-service
+              uri: http://order-app:8082
+              predicates:
+                - Path=/api/orders/**
 
-        - id: payment-service
-          uri: http://payment-app:8083
-          predicates:
-            - Path=/api/payments/**
+            - id: payment-service
+              uri: http://payment-app:8083
+              predicates:
+                - Path=/api/payments/**
