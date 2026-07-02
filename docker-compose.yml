@@ -6,17 +6,13 @@ services:
       - "8085:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - USER_SERVICE_URL=http://user-service:8080
-      - AUTH_SERVICE_URL=http://auth-service:8081
+      - USER_SERVICE_URL=http://user-app:8080
+      - AUTH_SERVICE_URL=http://auth-app:8081
     depends_on:
-      auth-service:
-        condition: service_started
-      user-service:
-        condition: service_started
-      order-service:
-        condition: service_started
-      payment-service:
-        condition: service_started
+      - auth-service
+      - user-service
+      - order-service
+      - payment-service
 
   user-service:
     container_name: user-app
@@ -28,8 +24,6 @@ services:
       - SPRING_DATASOURCE_PASSWORD=postgres
       - REDIS_HOST=system-redis
       - REDIS_PORT=6379
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB=DEBUG
     depends_on:
       system-db:
         condition: service_healthy
@@ -46,8 +40,6 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/auth_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB=DEBUG
     depends_on:
       system-db:
         condition: service_healthy
@@ -60,10 +52,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/order_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
-      - USER_SERVICE_URL=http://user-service:8080
-      - LOGGING_LEVEL_COM_INNOWISE_ORDERSERVICE=DEBUG
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB=DEBUG
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG
+      - USER_SERVICE_URL=http://user-app:8080
     depends_on:
       system-db:
         condition: service_healthy
@@ -92,7 +81,10 @@ services:
     ports:
       - "8084:8084"
     command: >
-      sh -c "echo 'while true; do echo -e \"HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\\\"number\\\": \$((\$RANDOM % 100))}\" | nc -l -p 8084; done' > /app.sh && chmod +x /app.sh && /app.sh"
+      sh -c "while true; do 
+        RAND_VAL=\$(od -An -N2 -i /dev/urandom | awk '{print \$1 % 100}');
+        echo -e \"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\\\"number\\\": \$\$RAND_VAL}\" | nc -ll -p 8084;
+      done"
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "8084"]
       interval: 5s
@@ -148,11 +140,11 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-    healthcheck:
-      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/2181"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+#    healthcheck:
+#      test: [ "CMD", "zookeeper-shell", "localhost:2181", "ls", "/" ]
+#      interval: 5s
+#      timeout: 3s
+#      retries: 5
 
   system-kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -161,7 +153,8 @@ services:
       - "9092:9092"
     depends_on:
       system-zookeeper:
-        condition: service_healthy
+#        condition: service_healthy
+        condition: service_started
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: system-zookeeper:2181

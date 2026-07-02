@@ -2,6 +2,7 @@ package com.innowise.apigateway.filter;
 
 import com.innowise.apigateway.dto.auth.ValidateTokenRequest;
 import com.innowise.apigateway.dto.auth.ValidateResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -12,16 +13,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final WebClient authWebClient;
-
-    public JwtAuthenticationFilter(WebClient authWebClient) {
-        this.authWebClient = authWebClient;
-    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange serverWebExchange, GatewayFilterChain gatewayFilterChain) {

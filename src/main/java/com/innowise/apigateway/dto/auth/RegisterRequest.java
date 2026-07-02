@@ -30,4 +30,5 @@ public record RegisterRequest(
 
         @NotBlank(message = "Role is required")
         String role
-) {}
+) {
+}

@@ -1,5 +1,6 @@
 package com.innowise.apigateway.service;
 
+import com.innowise.apigateway.dto.user.UserResponse;
 import com.innowise.apigateway.service.impl.RegistrationServiceImpl;
 import com.innowise.apigateway.testdata.GatewayTestData;
 import okhttp3.mockwebserver.MockResponse;
@@ -54,9 +55,11 @@ class RegistrationServiceImplTest extends GatewayTestData {
                 .setHeader("Content-Type", "application/json")
                 .setBody("{}"));
 
-        Mono<Void> result = registrationService.register(defaultRegisterRequest);
+        Mono<UserResponse> result = registrationService.register(defaultRegisterRequest);
 
-        StepVerifier.create(result).verifyComplete();
+        StepVerifier.create(result)
+                .expectNextMatches(userResponse -> userResponse.id() == 1L)
+                .verifyComplete();
     }
 
     @Test
@@ -76,7 +79,7 @@ class RegistrationServiceImplTest extends GatewayTestData {
                 .setHeader("Content-Type", "application/json")
                 .setBody(""));
 
-        Mono<Void> result = registrationService.register(defaultRegisterRequest);
+        Mono<UserResponse> result = registrationService.register(defaultRegisterRequest);
 
         StepVerifier.create(result)
                 .expectErrorMatches(e -> e.getMessage().contains("Registration rolled back"))
@@ -90,7 +93,7 @@ class RegistrationServiceImplTest extends GatewayTestData {
                 .setHeader("Content-Type", "application/json")
                 .setBody("{\"error\":\"Bad request\"}"));
 
-        Mono<Void> result = registrationService.register(defaultRegisterRequest);
+        Mono<UserResponse> result = registrationService.register(defaultRegisterRequest);
 
         StepVerifier.create(result)
                 .expectErrorMatches(e -> e.getMessage().contains("User service error"))

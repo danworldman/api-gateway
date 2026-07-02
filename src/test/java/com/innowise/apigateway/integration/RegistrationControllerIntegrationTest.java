@@ -30,7 +30,7 @@ public class RegistrationControllerIntegrationTest extends BaseIntegrationTest {
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                         .withBody("{\"id\":1}")));
 
-        authMockServer.stubFor(post(urlEqualTo("/api/v1/auth/register"))
+        authMockServer.stubFor(post(urlEqualTo("/api/v1/auth/credentials"))
                 .willReturn(aResponse()
                         .withStatus(201)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -41,14 +41,14 @@ public class RegistrationControllerIntegrationTest extends BaseIntegrationTest {
         HttpEntity<RegisterRequest> entity = new HttpEntity<>(defaultRegisterRequest, headers);
 
         ResponseEntity<String> response = restTemplate.postForEntity(
-                baseUrl() + "/api/v1/auth/register",
+                baseUrl() + "/register",
                 entity,
                 String.class
         );
 
         assertThat(response.getStatusCode()).isIn(HttpStatus.CREATED, HttpStatus.OK);
         userMockServer.verify(exactly(1), postRequestedFor(urlEqualTo("/api/users")));
-        authMockServer.verify(exactly(1), postRequestedFor(urlEqualTo("/api/v1/auth/register")));
+        authMockServer.verify(exactly(1), postRequestedFor(urlEqualTo("/api/v1/auth/credentials")));
     }
 
     @Test
@@ -59,7 +59,7 @@ public class RegistrationControllerIntegrationTest extends BaseIntegrationTest {
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                         .withBody("{\"id\":1}")));
 
-        authMockServer.stubFor(post(urlEqualTo("/api/v1/auth/register"))
+        authMockServer.stubFor(post(urlEqualTo("/api/v1/auth/credentials"))
                 .willReturn(aResponse()
                         .withStatus(500)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -75,7 +75,7 @@ public class RegistrationControllerIntegrationTest extends BaseIntegrationTest {
         HttpEntity<RegisterRequest> entity = new HttpEntity<>(defaultRegisterRequest, headers);
 
         assertThatThrownBy(() -> restTemplate.postForEntity(
-                baseUrl() + "/api/v1/auth/register",
+                baseUrl() + "/register",
                 entity,
                 String.class
         ))
@@ -84,7 +84,7 @@ public class RegistrationControllerIntegrationTest extends BaseIntegrationTest {
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 
         userMockServer.verify(exactly(1), postRequestedFor(urlEqualTo("/api/users")));
-        authMockServer.verify(exactly(1), postRequestedFor(urlEqualTo("/api/v1/auth/register")));
+        authMockServer.verify(exactly(1), postRequestedFor(urlEqualTo("/api/v1/auth/credentials")));
         userMockServer.verify(exactly(1), deleteRequestedFor(urlEqualTo("/api/users/1")));
     }
 
@@ -101,7 +101,7 @@ public class RegistrationControllerIntegrationTest extends BaseIntegrationTest {
         HttpEntity<RegisterRequest> entity = new HttpEntity<>(defaultRegisterRequest, headers);
 
         assertThatThrownBy(() -> restTemplate.postForEntity(
-                baseUrl() + "/api/v1/auth/register",
+                baseUrl() + "/register",
                 entity,
                 String.class
         ))
@@ -110,7 +110,7 @@ public class RegistrationControllerIntegrationTest extends BaseIntegrationTest {
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 
         userMockServer.verify(exactly(1), postRequestedFor(urlEqualTo("/api/users")));
-        authMockServer.verify(0, postRequestedFor(urlEqualTo("/api/v1/auth/register")));
+        authMockServer.verify(0, postRequestedFor(urlEqualTo("/api/v1/auth/credentials")));
     }
 
     private final RegisterRequest defaultRegisterRequest = new RegisterRequest(

@@ -4,60 +4,33 @@ spring:
       httpclient:
         connect-timeout: 10000
         response-timeout: 10s
-      server:
-        webflux:
-          routes:
-            - id: register-local
-              uri: forward:/api/v1/auth/credentials
-              predicates:
-                - Path=/api/v1/auth/credentials
+      routes:
+        - id: register-local
+          uri: forward:/register
+          predicates:
+            - Path=/register
 
-            - id: user-service
-              uri: http://user-service:8080
-              predicates:
-                - Path=/api/users/**
-              filters:
-                - name: CircuitBreaker
-                  args:
-                    name: userCircuitBreaker
-                    fallbackUri: forward:/fallback/user
+        - id: user-service
+          uri: http://user-app:8080
+          predicates:
+            - Path=/api/users/**
 
-            - id: user-cards
-              uri: http://user-service:8080
-              predicates:
-                - Path=/api/cards/**
-              filters:
-                - name: CircuitBreaker
-                  args:
-                    name: userCircuitBreaker
-                    fallbackUri: forward:/fallback/user
+        - id: user-cards
+          uri: http://user-app:8080
+          predicates:
+            - Path=/api/cards/**
 
-            - id: auth-service
-              uri: http://auth-service:8081
-              predicates:
-                - Path=/api/v1/auth/**
-              filters:
-                - name: CircuitBreaker
-                  args:
-                    name: authCircuitBreaker
-                    fallbackUri: forward:/fallback/auth
+        - id: auth-service
+          uri: http://auth-app:8081
+          predicates:
+            - Path=/api/v1/auth/**
 
-            - id: order-service
-              uri: http://order-service:8082
-              predicates:
-                - Path=/api/orders/**
-              filters:
-                - name: CircuitBreaker
-                  args:
-                    name: orderCircuitBreaker
-                    fallbackUri: forward:/fallback/order
+        - id: order-service
+          uri: http://order-app:8082
+          predicates:
+            - Path=/api/orders/**
 
-            - id: payment-service
-              uri: http://payment-service:8083
-              predicates:
-                - Path=/api/payments/**
-              filters:
-                - name: CircuitBreaker
-                  args:
-                    name: paymentCircuitBreaker
-                    fallbackUri: forward:/fallback/payment
+        - id: payment-service
+          uri: http://payment-app:8083
+          predicates:
+            - Path=/api/payments/**
