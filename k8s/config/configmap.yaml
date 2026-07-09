@@ -1,0 +1,8 @@
+﻿apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  KAFKA_BOOTSTRAP_SERVERS: "system-kafka:9092"
+  EXTERNAL_API_URL: "http://external-mock:8084/api/numbers"
+  SPRING_PROFILES_ACTIVE: "docker"
