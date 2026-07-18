@@ -1,0 +1,168 @@
+services:
+  api-gateway:
+    container_name: api-gateway
+    build: .
+    ports:
+      - "8085:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - USER_SERVICE_URL=http://user-app:8080
+      - AUTH_SERVICE_URL=http://auth-app:8081
+    depends_on:
+      - auth-service
+      - user-service
+      - order-service
+      - payment-service
+
+  user-service:
+    container_name: user-app
+    build: ../user-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/user_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - REDIS_HOST=system-redis
+      - REDIS_PORT=6379
+    depends_on:
+      system-db:
+        condition: service_healthy
+      system-redis:
+        condition: service_healthy
+
+  auth-service:
+    container_name: auth-app
+    build: ../auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/auth_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+    depends_on:
+      system-db:
+        condition: service_healthy
+
+  order-service:
+    container_name: order-app
+    build: ../order-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://system-db:5432/order_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - USER_SERVICE_URL=http://user-app:8080
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=system-kafka:9092
+    depends_on:
+      system-db:
+        condition: service_healthy
+      system-kafka:
+        condition: service_healthy
+
+  payment-service:
+    container_name: payment-app
+    build: ../payment-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_MONGODB_URI=mongodb://system-mongodb:27017/payment_db?connectTimeoutMS=5000&socketTimeoutMS=5000
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=system-kafka:9092
+      - EXTERNAL_API_URL=http://external-mock:8084/api/numbers
+    depends_on:
+      system-mongodb:
+        condition: service_healthy
+      system-kafka:
+        condition: service_healthy
+      external-mock:
+        condition: service_healthy
+
+  external-mock:
+    image: python:3.11-alpine
+    container_name: external-mock
+    ports:
+      - "8084:8084"
+    volumes:
+      - ./mock.py:/mock.py
+    command: python /mock.py
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8084/api/numbers')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  system-db:
+    container_name: system-db
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  system-redis:
+    container_name: system-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  system-mongodb:
+    image: mongo:4.4
+    container_name: system-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')", "--quiet"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  system-zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: system-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  system-kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: system-kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      system-zookeeper:
+        condition: service_started
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: system-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://system-kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "</dev/tcp/127.0.0.1/9092" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  db-data:
+  mongo-data:

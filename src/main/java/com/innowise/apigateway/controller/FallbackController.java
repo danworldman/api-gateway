@@ -1,0 +1,66 @@
+package com.innowise.apigateway.controller;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
+
+@RestController
+@RequestMapping("/fallback")
+public class FallbackController {
+
+    @RequestMapping(value = "/user", method = {
+            RequestMethod.GET,
+            RequestMethod.POST,
+            RequestMethod.PUT,
+            RequestMethod.DELETE,
+            RequestMethod.PATCH
+    })
+    public Mono<ResponseEntity<ProblemDetail>> userFallback() {
+        return createFallbackResponse("User Service");
+    }
+
+    @RequestMapping(value = "/auth", method = {
+            RequestMethod.GET,
+            RequestMethod.POST,
+            RequestMethod.PUT,
+            RequestMethod.DELETE,
+            RequestMethod.PATCH
+    })
+    public Mono<ResponseEntity<ProblemDetail>> authFallback() {
+        return createFallbackResponse("Auth Service");
+    }
+
+    @RequestMapping(value = "/order", method = {
+            RequestMethod.GET,
+            RequestMethod.POST,
+            RequestMethod.PUT,
+            RequestMethod.DELETE,
+            RequestMethod.PATCH
+    })
+    public Mono<ResponseEntity<ProblemDetail>> orderFallback() {
+        return createFallbackResponse("Order Service");
+    }
+
+    @RequestMapping(value = "/payment", method = {
+            RequestMethod.GET,
+            RequestMethod.POST,
+            RequestMethod.PUT,
+            RequestMethod.DELETE,
+            RequestMethod.PATCH
+    })
+    public Mono<ResponseEntity<ProblemDetail>> paymentFallback() {
+        return createFallbackResponse("Payment Service");
+    }
+
+    private Mono<ResponseEntity<ProblemDetail>> createFallbackResponse(String serviceName) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                serviceName + " is temporarily unavailable. Circuit Breaker tripped."
+        );
+        return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problemDetail));
+    }
+}
