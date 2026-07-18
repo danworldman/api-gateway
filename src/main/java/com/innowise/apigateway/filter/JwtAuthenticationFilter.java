@@ -15,10 +15,19 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
+
+    private static final Set<String> PUBLIC_PATHS = Set.of(
+            "/register",
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/validate",
+            "/oauth2/jwks"
+    );
 
     private final WebClient authWebClient;
 
@@ -27,7 +36,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         ServerHttpRequest serverHttpRequest = serverWebExchange.getRequest();
         String requestUriPath = serverHttpRequest.getURI().getPath();
 
-        if (requestUriPath.equals("/register") || requestUriPath.equals("/api/v1/auth/login") || requestUriPath.equals("/oauth2/jwks")) {
+        if (PUBLIC_PATHS.contains(requestUriPath)) {
             return gatewayFilterChain.filter(serverWebExchange);
         }
 

@@ -4,13 +4,13 @@ metadata:
   name: api-gateway-ingress
 spec:
   rules:
-  - host: app.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: api-gateway
-            port:
-              number: 8080
+    - host: app.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 8080

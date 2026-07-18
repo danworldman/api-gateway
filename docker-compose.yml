@@ -53,8 +53,11 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - USER_SERVICE_URL=http://user-app:8080
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=system-kafka:9092
     depends_on:
       system-db:
+        condition: service_healthy
+      system-kafka:
         condition: service_healthy
 
   payment-service:

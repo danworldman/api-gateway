@@ -13,27 +13,46 @@ spec:
         app: user-app
     spec:
       containers:
-      - name: user-service
-        image: user-service:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 8080
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "docker"
-        - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://system-db:5432/user_db"
-        - name: SPRING_DATASOURCE_USERNAME
-          value: "postgres"
-        - name: SPRING_DATASOURCE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: postgres-password
-        - name: REDIS_HOST
-          value: "system-redis"
-        - name: REDIS_PORT
-          value: "6379"
+        - name: user-service
+          image: user-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx256m"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://system-db:5432/user_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: postgres-password
+            - name: REDIS_HOST
+              value: "system-redis"
+            - name: REDIS_PORT
+              value: "6379"
 ---
 apiVersion: v1
 kind: Service
@@ -43,6 +62,6 @@ spec:
   selector:
     app: user-app
   ports:
-  - port: 8080
-    targetPort: 8080
+    - port: 8080
+      targetPort: 8080
   type: ClusterIP

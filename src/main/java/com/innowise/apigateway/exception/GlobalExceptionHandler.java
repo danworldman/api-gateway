@@ -8,6 +8,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebExceptionHandler;
 import reactor.core.publisher.Mono;
@@ -39,6 +40,11 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
             status = webClientResponseException.getStatusCode();
             String responseBody = webClientResponseException.getResponseBodyAsString();
             detail = !responseBody.isBlank() ? responseBody : webClientResponseException.getMessage();
+        } else if (throwable instanceof ResponseStatusException responseStatusException) {
+            status = responseStatusException.getStatusCode();
+            detail = responseStatusException.getReason() != null
+                    ? responseStatusException.getReason()
+                    : "Resource not found";
         } else if (throwable instanceof IllegalArgumentException) {
             status = HttpStatus.BAD_REQUEST;
             detail = throwable.getMessage();

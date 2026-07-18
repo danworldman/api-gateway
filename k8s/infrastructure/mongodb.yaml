@@ -29,7 +29,16 @@ spec:
           image: mongo:4.4
           ports:
             - containerPort: 27017
-          # удаляем env
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 20
+            periodSeconds: 5
           volumeMounts:
             - name: mongodb-storage
               mountPath: /data/db
